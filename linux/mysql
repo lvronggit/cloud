@@ -1,0 +1,226 @@
+Linux平台上推荐使用RPM包来安装Mysql,MySQL 提供了以下RPM包的下载地址：
+MySQL-MySQL服务器。你需要该选项，除非你只想连接运行在另一台机器上的MySQL服务器。
+MySQL-client - MySQL 客户端程序，用于连接并操作Mysql服务器。
+MySQL-devel - 库和包含文件，如果你想要编译其它MySQL客户端，例如Perl模块，则需要安装该RPM包。
+MySQL-shared - 该软件包包含某些语言和应用程序需要动态装载的共享库(libmysqlclient.so*)，使用MySQL。
+MySQL-bench - MySQL数据库服务器的基准和性能测试工具。
+安装过程中可能发生的错误在文章底部都有说明和解决步骤：
+安装前，我们可以检测系统是否自带安装 MySQL:
+
+rpm -qa | grep mysql
+1
+如果你系统有安装，那可以选择进行卸载:
+
+// 普通删除模式
+rpm -e mysql
+// 强力删除模式，如果使用上面命令删除时，提示有依赖的其它文件，则用该命令可以对其进行强力删除
+rpm -e --nodeps mysql
+1
+2
+3
+4
+安装 MySQL：
+接下来我们在 Centos7 系统下使用 yum 命令安装 MySQL，需要注意的是 CentOS 7 版本中 MySQL数据库已从默认的程序列表中移除，所以在安装前我们需要先去官网下载 Yum 资源包，下载地址：https://dev.mysql.com/downloads/repo/yum/
+这里写图片描述
+这里我们选择使用wget下载：
+
+wget https://repo.mysql.com//mysql80-community-release-el7-1.noarch.rpm
+1
+安装：
+
+rpm -ivh mysql80-community-release-el7-1.noarch.rpm
+yum install mysql-server
+1
+2
+安装过程中会需要提示下载依赖，按y确认下载即可：
+这里写图片描述
+初始化MySQL：
+
+mysqld --initialize
+1
+启动 MySQL：
+
+service mysqld start
+1
+查看 MySQL 运行状态：
+
+service mysqld status
+1
+验证 MySQL 安装
+在成功安装 MySQL 后，一些基础表会被初始化，在服务器启动后，你可以通过简单的测试来验证 MySQL 是否工作正常。
+
+使用 mysqladmin 工具来获取服务器状态：
+
+mysqladmin --version
+1
+linux上该命令将输出以下结果，该结果基于你的系统信息：
+
+这里写图片描述
+如果以上命令执行后未输入任何信息，说明你的Mysql未安装成功。
+
+使用 MySQL Client(Mysql客户端) 执行简单的SQL命令
+你可以在 MySQL Client(Mysql客户端) 使用 mysql 命令连接到Mysql服务器上，默认情况下Mysql服务器的密码为空，所以本实例不需要输入密码。
+命令如下：
+
+mysql -uroot -p
+1
+以上命令执行后会输出 mysql>提示符，这说明你已经成功连接到Mysql服务器上，你可以在 mysql> 提示符执行SQL命令：
+
+mysql> show databases;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| mysql              |
+| performance_schema |
+| sys                |
++--------------------+
+4 rows in set (0.01 sec)
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+安装问题错误解决：
+1，Job for mysqld.service failed because the control process exited with error code. See “systemctl status mysqld.service” and “journalctl -xe” for details. 错误
+这里写图片描述
+根据提示，分别使用service mysqld status和journalctl -xe查看服务启动失败的原因，发现是目录权限不足造成的，通过查看mysql目录发现目录下有的文件归属还是root，改成mysql即可
+这里写图片描述
+
+ll /var/lib/mysql |grep mysql
+chown -R mysql:mysql /var/lib/mysql
+1
+2
+2，ERROR 1045 (28000): Access denied for user ‘root’@’localhost’ (using password: NO) 错误
+这里写图片描述
+停止mysql服务：
+
+service mysqld stop
+1
+修改配置文件无密码登录：
+
+vi /etc/my.cnf
+1
+2
+在最尾部加上：
+
+skip-grant-tables
+1
+2
+这里写图片描述
+保存，启动mysql：
+
+service mysqld start
+1
+登录mysql：
+
+mysql -u root
+1
+2
+查询mysql数据库：
+
+mysql> show databases;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| mysql              |
+| performance_schema |
+| sys                |
++--------------------+
+4 rows in set (0.00 sec)
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+选中mysql数据库：
+
+mysql> use mysql;
+Database changed
+1
+2
+首先更新root密码为空字符串：
+
+update user set authentication_string='' where user='root';
+1
+退出，删除之前步骤加上的 “skip-grant-tables” 然后重启mysql：
+
+// 1，退出
+exit
+// 2，修改，删除最后的skip-grant-tables
+vim /etc/my.cnf
+// 3，重启
+service mysqld restart
+1
+2
+3
+4
+5
+6
+然后在登陆Mysql：
+
+mysql -uroot
+1
+使用ALTER修改root用户密码,方法为 ALTER user ‘root’@’localhost’ IDENTIFIED BY ‘新密码’。如下：
+
+ALTER user 'root'@'localhost' IDENTIFIED BY '你的密码';
+1
+然后再用exit退出，再次登陆mysql就需要使用密码了，密码就是刚刚修改的密码
+
+3，SQLyog连接时，报1130错误，是由于没有给远程连接的用户权限问题
+这里写图片描述
+步骤一：
+改变MySQL的连接权限
+由于MySQL的默认的root的连接权限只是本机的,因此,我们需要开启他的权限,使得它可以使其他人都能连接到他,这里有很多方法可以走到,我这里就先用改表举例子
+改表法,顾名思义,就是改变数据库的表,是的root这个账号能够处理其他ip地址的连接
+
+mysql-> use mysql;
+Database Changed
+//查看数据库表
+mysql-> select host, user from user;
+//修改数据库表
+mysql-> update user set host = '%' where user = 'root';
+1
+2
+3
+4
+5
+6
+这样就可以使得root账号能够被其他ip连接入数据库了
+
+步骤二：
+修改MySQL8.0的密码的编码方式,由于MySQL8.0修改了他的编码方式,而我的SQLyog 好像又没有这个编码方式的密码,因此,就只能将密码的编码方式修改为原来的编码方式了,不然就没有方法登陆了
+
+// 由于之前将root对于的localhost改为了%,因此,root后面的地址也要变成%
+ALTER USER 'root'@'%' IDENTIFIED WITH mysql_native_password BY '你的密码';
+1
+2
+如果通过以上步骤还连接不上，请检查防火墙是否已经关闭。
+CentOS6关闭防火墙使用以下命令：
+
+// 临时关闭
+service iptables stop
+// 禁止开机启动
+chkconfig iptables off
+1
+2
+3
+4
+CentOS7关闭防火墙使用以下命令：
+
+// 临时关闭
+systemctl stop firewalld
+// 禁止开机启动
+systemctl disable firewalld

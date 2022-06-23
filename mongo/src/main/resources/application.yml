@@ -1,0 +1,5 @@
+# application.yml
+spring:
+  data:
+    mongodb:
+      uri: mongodb://101.34.52.205:27017/mock
